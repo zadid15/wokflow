@@ -1,0 +1,37 @@
+# IDE
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# Root
+node_modules/
+dist/
+
+# Backend (be)
+/be/.env
+/be/.env.backup
+/be/.env.production
+/be/vendor/
+/be/storage/*.key
+/be/storage/framework/cache/data/*
+/be/storage/framework/sessions/*
+/be/storage/framework/testing/*
+/be/storage/framework/sessions/*
+/be/storage/framework/views/*
+/be/storage/logs/*
+/be/public/storage
+/be/public/build
+/be/public/hot
+/be/.phpunit.cache/
+/be/.phpunit.result.cache
+
+# Frontend (fe)
+/fe/node_modules/
+/fe/dist/
+/fe/dist-ssr/
+/fe/*.local
+/fe/.env
+/fe/.env.*
+!/fe/.env.example
