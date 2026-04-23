@@ -13,12 +13,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/users/password', [AuthController::class, 'updatePassword']);
 
     // Admin Only Routes
-    Route::middleware(function ($request, $next) {
-        if ($request->user()->role !== 'admin') {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-        return $next($request);
-    })->group(function () {
+    Route::middleware('admin')->group(function () {
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'store']);
         Route::get('/users/{id}', [UserController::class, 'show']);
