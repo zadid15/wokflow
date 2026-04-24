@@ -10,6 +10,7 @@ Route::post('/users/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/profile', [AuthController::class, 'profile']);
+    Route::post('/users/logout', [AuthController::class, 'logout']);
     Route::put('/users', [AuthController::class, 'updateProfile']);
     Route::put('/users/password', [AuthController::class, 'updatePassword']);
 
