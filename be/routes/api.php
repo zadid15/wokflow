@@ -3,6 +3,10 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\BusinessCategoryController;
+use App\Http\Controllers\CookingCategoryController;
+use App\Http\Controllers\MenuController;
+use App\Http\Controllers\AttributeController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +26,30 @@ Route::middleware('auth:sanctum')->group(function () {
     });
     Route::middleware('admin')->group(function () {
         Route::delete('/orders/{id}', [OrderController::class, 'destroy']);
+    });
+
+    // Master Data Routes
+    Route::get('/business-categories', [BusinessCategoryController::class, 'index']);
+    Route::get('/cooking-categories', [CookingCategoryController::class, 'index']);
+    Route::get('/menus', [MenuController::class, 'index']);
+    Route::get('/attributes', [AttributeController::class, 'index']);
+
+    Route::middleware('admin')->group(function () {
+        Route::post('/business-categories', [BusinessCategoryController::class, 'store']);
+        Route::put('/business-categories/{id}', [BusinessCategoryController::class, 'update']);
+        Route::delete('/business-categories/{id}', [BusinessCategoryController::class, 'destroy']);
+
+        Route::post('/cooking-categories', [CookingCategoryController::class, 'store']);
+        Route::put('/cooking-categories/{id}', [CookingCategoryController::class, 'update']);
+        Route::delete('/cooking-categories/{id}', [CookingCategoryController::class, 'destroy']);
+
+        Route::post('/menus', [MenuController::class, 'store']);
+        Route::put('/menus/{id}', [MenuController::class, 'update']);
+        Route::delete('/menus/{id}', [MenuController::class, 'destroy']);
+
+        Route::post('/attributes', [AttributeController::class, 'store']);
+        Route::put('/attributes/{id}', [AttributeController::class, 'update']);
+        Route::delete('/attributes/{id}', [AttributeController::class, 'destroy']);
     });
 
     // Admin Only Routes

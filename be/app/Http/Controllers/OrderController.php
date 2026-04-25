@@ -16,7 +16,7 @@ class OrderController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = Order::query();
+            $query = Order::with(['orderItems.orderItemAttributes']);
 
             // Filter by status
             if ($request->has('status')) {
@@ -75,14 +75,13 @@ class OrderController extends Controller
 
                 $nextNumber = 1;
                 if ($lastOrder) {
-                    // Extract number from queue_number (e.g., C-10 -> 10)
                     $lastNumber = (int) substr($lastOrder->queue_number, 2);
                     $nextNumber = $lastNumber + 1;
                 }
 
                 $queueNumber = $prefix . $nextNumber;
 
-                return Order::create([
+                $order = Order::create([
                     'queue_number' => $queueNumber,
                     'status' => 'pending',
                     'source' => $source,
@@ -90,14 +89,36 @@ class OrderController extends Controller
                     'customer_phone' => $request->customer_phone,
                     'created_by' => auth()->id(),
                 ]);
+
+                foreach ($request->order_items as $itemData) {
+                    $orderItem = $order->orderItems()->create([
+                        'menu_id' => $itemData['menu_id'],
+                        'qty' => $itemData['qty'],
+                        'status' => 'waiting_queue',
+                    ]);
+
+                    if (isset($itemData['order_item_attributes'])) {
+                        foreach ($itemData['order_item_attributes'] as $attrData) {
+                            $orderItem->orderItemAttributes()->create([
+                                'attribute_id' => $attrData['attribute_id'],
+                                'value' => $attrData['value'],
+                            ]);
+                        }
+                    }
+                }
+
+                return $order->load('orderItems.orderItemAttributes');
             });
 
             return response()->json([
-                'message' => 'Order berhasil ditambahkan',
+                'message' => 'Order berhasil dibuat.',
                 'data' => $order
             ], 201);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Order gagal ditambahkan'], 400);
+            return response()->json([
+                'message' => 'Order gagal dibuat.',
+                'error' => $e->getMessage() // Added for debugging during implementation
+            ], 400);
         }
     }
 

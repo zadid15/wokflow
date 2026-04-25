@@ -1,0 +1,658 @@
+Buatkan issue.md yang berisi perencanaan untuk nanti di implementasikan oleh junior programmer atau ai model yang lebih murah
+
+Isi dari planning nya adalah sebagai berikut :
+
+Buat table orders :
+- order_id
+- queue_number
+- status enum (pending, in_progress, partially_ready, ready, completed, cancelled)
+- source enum (whatsapp, cashier)
+- customer_name (nullable)
+- customer_phone (nullable)
+- created_at
+- updated_at
+- deleted_at
+
+Buat table business_categories :
+- business_category_id
+- name
+- created_at
+- updated_at
+
+Buat table cooking_categories :
+- cooking_category_id
+- name
+- created_at
+- updated_at
+
+Buat table menus :
+- menu_id
+- business_category_id (foreign key ke table business_categories.business_category_id)
+- cooking_category_id (foreign key ke table cooking_categories.cooking_category_id)
+- name
+- price
+- created_at
+- updated_at
+
+Buat table order_items :
+- order_item_id
+- order_id (foreign key ke table orders.order_id)
+- menu_id (foreign key ke table menus.menu_id)
+- qty (integer)
+- status enum (waiting_queue, cooking, done, served, cancelled)
+- created_at
+- updated_at
+
+Buat table attributes :
+- attribute_id
+- name
+- created_at
+- updated_at
+
+Buat table order_item_attributes :
+- order_item_attribute_id
+- order_item_id (foreign key ke table order_items.order_item_id)
+- attribute_id (foreign key ke table attributes.attribute_id)
+- value (boolean)
+- created_at
+- updated_at
+
+Business Logic :
+    1. source wajib dan harus salah satu dari : cashier, whatsapp.
+
+    2. Masing masing source auto generate queue_number, dengan format penomoran antrean sebagai berikut :
+        - Cashier : menggunakan format C-nomorurut,
+        - WhatsApp : menggunakan format W-nomorurut
+
+        Contoh :
+        - Jika order pertama maka nomor urutnya adalah 1, jadi queue_number nya adalah C-1 atau W-1
+        - Jika terapat 2 orderan dimana 1 orderan dari WhatsApp (orderan pertama) dan 1 orderan dari Cashier (orderan kedua) maka :
+            - Orderan pertama format antreannya menjadi W-1
+            - Orderan kedua format antreannya menjadi C-1
+        - Nomor urut queue_number dihitung terpisah berdasarkan source :
+            - Cashier memiliki counter sendiri
+            - WhatsApp memiliki counter sendiri
+        - queue_number harus di-generate secara atomic menggunakan database transaction atau locking mechanism untuk menghindari duplikasi nomor.
+
+    3. Jika source = cashier :
+        - customer_name boleh nullable
+        - customer_phone boleh nullable
+
+    4. Jika source = whatsapp :
+        - minimal salah satu dari customer_name atau customer_phone wajib diisi
+
+    5. Urutan order ditentukan berdasarkan created_at
+
+    6. queue_number harus di generate secara atomic
+
+    7. Semua proses create dilakukan dalam 1 database transaction
+
+    8. Penghapusan menggunakan soft delete (deleted_at)
+
+    9. Gunakan artisan
+
+Endpoint :
+    1. POST api/orders
+        Role access : cashier
+
+        source = cashier :
+            Request body :
+                {
+                    "source": "cashier",
+                    "customer_name": "Budi",
+                    "customer_phone": "08123456789",
+                    "order_items": [
+                        {
+                            "menu_id": 1,
+                            "qty": 2,
+                            "order_item_attributes": [
+                                {
+                                    "attribute_id": 1,
+                                    "value": true
+                                },
+                                {
+                                    "attribute_id": 2,
+                                    "value": false
+                                }
+                            ]
+                        }
+                    ]
+                }
+
+            Response body (Success) :
+                {
+                    "message": "Order berhasil dibuat.",
+                    "data": {
+                        "order_id": 1,
+                        "queue_number": "C-1",
+                        "status": "pending",
+                        "source": "cashier",
+                        "customer_name": "Budi",
+                        "customer_phone": "08123456789",
+                        "created_at": "2022-01-01T00:00:00.000000Z",
+                        "updated_at": "2022-01-01T00:00:00.000000Z",
+                        "order_items": [
+                            {
+                            "order_item_id": 1,
+                            "order_id": 1,
+                            "menu_id": 1,
+                            "qty": 2,
+                            "status": "waiting_queue",
+                            "created_at": "2022-01-01T00:00:00.000000Z",
+                            "updated_at": "2022-01-01T00:00:00.000000Z",
+                            "order_item_attributes": [
+                                {
+                                "order_item_attribute_id": 1,
+                                "order_item_id": 1,
+                                "attribute_id": 1,
+                                "value": true,
+                                "created_at": "2022-01-01T00:00:00.000000Z",
+                                "updated_at": "2022-01-01T00:00:00.000000Z"
+                                },
+                                {
+                                "order_item_attribute_id": 2,
+                                "order_item_id": 1,
+                                "attribute_id": 2,
+                                "value": false,
+                                "created_at": "2022-01-01T00:00:00.000000Z",
+                                "updated_at": "2022-01-01T00:00:00.000000Z"
+                                }
+                            ]
+                            }
+                        ]
+                    }
+                }
+
+            Response body (Error) :
+                {
+                    "message": "Order gagal dibuat.",
+                    "errors": [
+                        {
+                            "field": "items",
+                            "message": "Items wajib diisi."
+                        }
+                    ]
+                }
+
+        source = whatsapp :
+            Request body :
+                {
+                    "source": "whatsapp",
+                    "customer_phone": "0856xxxx",
+                    "order_items": [
+                        {
+                            "menu_id": 1,
+                            "qty": 2,
+                            "order_item_attributes": [
+                                { "attribute_id": 1, "value": true }
+                            ]
+                        }
+                    ]
+                }
+
+            Response body (Success) :
+                {
+                    "message": "Order berhasil dibuat.",
+                    "data": {
+                        "order_id": 2,
+                        "queue_number": "W-1",
+                        "status": "pending",
+                        "source": "whatsapp",
+                        "customer_name": null,
+                        "customer_phone": "0856xxxx",
+                        "created_at": "2022-01-01T00:00:00.000000Z",
+                        "updated_at": "2022-01-01T00:00:00.000000Z",
+                        "order_items": [
+                        {
+                            "order_item_id": 2,
+                            "order_id": 2,
+                            "menu_id": 1,
+                            "qty": 2,
+                            "status": "waiting_queue",
+                            "created_at": "2022-01-01T00:00:00.000000Z",
+                            "updated_at": "2022-01-01T00:00:00.000000Z",
+                            "order_item_attributes": [
+                            {
+                                "order_item_attribute_id": 3,
+                                "order_item_id": 2,
+                                "attribute_id": 1,
+                                "value": true,
+                                "created_at": "2022-01-01T00:00:00.000000Z",
+                                "updated_at": "2022-01-01T00:00:00.000000Z"
+                            }
+                            ]
+                        }
+                        ]
+                    }
+                }
+
+            Response body (Error) :
+                {
+                    "message": "Order gagal dibuat.",
+                    "errors": [
+                        {
+                            "field": "items",
+                            "message": "Items wajib diisi."
+                        }
+                    ]
+                }
+
+    2. GET api/orders
+            Aku ingin return mempunyai beberapa fitur berikut :
+                - Paginate, dimana 1 page terdiri dari 10 data
+                - Tampilkan berdasarkan status
+                - Tampilkan berdasarkan source
+                - Terdapat fitur pencarian berdasarkan queue_number, atau customer_name, atau customer_phone
+                - Tampilkan berdasarkan tanggal pembuatan order (terbaru dulu)
+                - defaultnya list akan mengurutkan mulai dari pending ke completed dan cancelled, jadi yang cancelled akan ada paling bawah
+
+                Response body (Success) : Kamu harus return seperti ketentuan diatas
+
+                Response body (Error) : 
+                {
+                    "message": "Order gagal diambil.",
+                    "errors": [
+                        {
+                            "field": "status",
+                            "message": "Status tidak valid."
+                        }
+                    ]
+                }
+                
+    3. POST /api/business-categories
+        Role access : admin
+
+        Body request : 
+        {
+            "name" :  "Makanan"
+        }
+
+        Response Body (Success) : 
+        {
+            "message": "Business category berhasil dibuat",
+            "data": {
+                "business_category_id": 1,
+                "name": "Makanan",
+                "created_at": "2026-04-25T10:00:00Z"
+            }
+        }
+
+        Response body (Error) : 
+        {
+            "message": "Business category gagal dibuat.",
+            "errors": [
+                {
+                    "field": "name",
+                    "message": "Name wajib diisi."
+                }
+            ]
+        }
+
+    4. PUT /api/business-categories/{business_category_id}
+        Role access : admin
+
+        Body request : 
+        {
+            "name" :  "Makanan"
+        }
+
+        Response Body (Success) : 
+        {
+            "message": "Business category berhasil diupdate",
+            "data": {
+                "business_category_id": 1,
+                "name": "Makanan",
+                "created_at": "2026-04-25T10:00:00Z",
+                "updated_at": "2026-04-25T10:00:00Z"
+            }
+        }
+
+        Response body (Error) : 
+        {
+            "message": "Business category gagal diupdate.",
+            "errors": [
+                {
+                    "field": "name",
+                    "message": "Name wajib diisi."
+                }
+            ]
+        }
+
+    5. DELETE /api/business-categories/{business_category_id}
+        Role access : admin
+
+        Response Body (Success) : 
+        {
+            "message": "Business category berhasil dihapus"
+        }
+
+        Response body (Error) : 
+        {
+            "message": "Business category gagal dihapus."
+        }
+
+    6. GET /api/business-categories
+        Role access : all
+
+        Response Body (Success) : 
+        {
+            "data": {
+                "message" : "Business category berhasil diambil",
+                "business_categories": [
+                    {
+                        "business_category_id": 1,
+                        "name": "Makanan",
+                        "created_at": "2026-04-25T10:00:00Z",
+                        "updated_at": "2026-04-25T10:00:00Z"
+                    }
+                ]
+            }
+        }
+
+        Response body (Error) : 
+        {
+            "message": "Business category gagal diambil."
+        }
+        
+    7. POST /api/cooking-categories
+        Role access : admin
+
+        Body request : 
+        {
+            "name" :  "nasi"
+        }
+
+        Response Body (Success) : 
+        {
+            "message": "Cooking category berhasil dibuat",
+            "data": {
+                "cooking_category_id": 1,
+                "name": "nasi",
+                "created_at": "2026-04-25T10:00:00Z"
+            }
+        }
+
+        Response body (Error) : 
+        {
+            "message": "Cooking category gagal dibuat.",
+            "errors": [
+                {
+                    "field": "name",
+                    "message": "Name wajib diisi."
+                }
+            ]
+        }        
+
+    8. PUT /api/cooking-categories/{cooking_category_id}
+        Role access : admin
+
+        Body request : 
+        {
+            "name" :  "nasi"
+        }
+
+        Response Body (Success) : 
+        {
+            "message": "Cooking category berhasil diupdate",
+            "data": {
+                "cooking_category_id": 1,
+                "name": "nasi",
+                "created_at": "2026-04-25T10:00:00Z",
+                "updated_at": "2026-04-25T10:00:00Z"
+            }
+        }
+
+        Response body (Error) : 
+        {
+            "message": "Cooking category gagal diupdate.",
+            "errors": [
+                {
+                    "field": "name",
+                    "message": "Name wajib diisi."
+                }
+            ]
+        }        
+
+    9. DELETE /api/cooking-categories/{cooking_category_id}
+        Role access : admin
+
+        Response Body (Success) : 
+        {
+            "message": "Cooking category berhasil dihapus"
+        }
+
+        Response body (Error) : 
+        {
+            "message": "Cooking category gagal dihapus."
+        }        
+
+    10. GET /api/cooking-categories
+        Role access : all
+
+        Response Body (Success) : 
+        {
+            "data": {
+                "message" : "Cooking category berhasil diambil",
+                "cooking_categories": [
+                    {
+                        "cooking_category_id": 1,
+                        "name": "nasi",
+                        "created_at": "2026-04-25T10:00:00Z",
+                        "updated_at": "2026-04-25T10:00:00Z"
+                    }
+                ]
+            }
+        }
+
+        Response body (Error) : 
+        {
+            "message": "Cooking category gagal diambil."
+        }        
+
+    11. POST /api/menus
+            Role access : admin
+
+            Body request : 
+            {
+                "name" : "Nasi Goreng",
+                "business_category_id" : 1,
+                "cooking_category_id" : 1,
+                "price" : 15000
+            }
+            
+            Response Body (Success) : 
+            {
+                "message": "Menu berhasil dibuat",
+                "data": {
+                    "menu_id": 1,
+                    "name": "Nasi Goreng",
+                    "business_category_id": 1,
+                    "cooking_category_id": 1,
+                    "price": 15000,
+                    "created_at": "2026-04-25T10:00:00Z"
+                }
+            }
+
+            Response body (Error) : 
+            {
+                "message": "Menu gagal dibuat.",
+                "errors": [
+                    {
+                        "field": "name",
+                        "message": "Name wajib diisi."
+                    }
+                ]
+            }
+            
+    12. PUT /api/menus/{menu_id}
+            Role access : admin
+
+            Body request : 
+            {
+                "name" : "Nasi Goreng",
+                "business_category_id" : 1,
+                "cooking_category_id" : 1,
+                "price" : 15000
+            }
+            
+            Response Body (Success) : 
+            {
+                "message": "Menu berhasil diupdate",
+                "data": {
+                    "menu_id": 1,
+                    "name": "Nasi Goreng",
+                    "business_category_id": 1,
+                    "cooking_category_id": 1,
+                    "price": 15000,
+                    "created_at": "2026-04-25T10:00:00Z",
+                    "updated_at": "2026-04-25T10:00:00Z"
+                }
+            }
+
+            Response body (Error) : 
+            {
+                "message": "Menu gagal diupdate.",
+                "errors": [
+                    {
+                        "field": "name",
+                        "message": "Name wajib diisi."
+                    }
+                ]
+            }
+
+    13. DELETE /api/menus/{menu_id}
+            Role access : admin
+
+            Response Body (Success) : 
+            {
+                "message": "Menu berhasil dihapus"
+            }
+
+            Response body (Error) : 
+            {
+                "message": "Menu gagal dihapus."
+            }    
+    
+    14. GET /api/menus
+            Role access : all
+
+            Response Body (Success) : 
+            {
+                "data": {
+                    "message" : "Menu berhasil diambil",
+                    "menus": [
+                        {
+                            "menu_id": 1,
+                            "name": "Nasi Goreng",
+                            "business_category_id": 1,
+                            "cooking_category_id": 1,
+                            "price": 15000,
+                            "created_at": "2026-04-25T10:00:00Z",
+                            "updated_at": "2026-04-25T10:00:00Z"
+                        }
+                    ]
+                }
+            }
+
+            Response body (Error) : 
+            {
+                "message": "Menu gagal diambil."
+            }    
+
+    15. POST /api/attributes
+            Role access : admin
+
+            Body request : 
+            {
+                "name" : "pedas"
+            }
+            
+            Response Body (Success) : 
+            {
+                "message": "Attribute berhasil dibuat",
+                "data": {
+                    "attribute_id": 1,
+                    "name": "pedas",
+                    "created_at": "2026-04-25T10:00:00Z"
+                }
+            }
+
+            Response body (Error) : 
+            {
+                "message": "Attribute gagal dibuat.",
+                "errors": [
+                    {
+                        "field": "name",
+                        "message": "Name wajib diisi."
+                    }
+                ]
+            }            
+
+    16. PUT /api/attributes/{attribute_id}
+            Role access : admin
+
+            Body request : 
+            {
+                "name" : "pedas"
+            }
+            
+            Response Body (Success) : 
+            {
+                "message": "Attribute berhasil diupdate",
+                "data": {
+                    "attribute_id": 1,
+                    "name": "pedas",
+                    "created_at": "2026-04-25T10:00:00Z",
+                    "updated_at": "2026-04-25T10:00:00Z"
+                }
+            }
+
+            Response body (Error) : 
+            {
+                "message": "Attribute gagal diupdate.",
+                "errors": [
+                    {
+                        "field": "name",
+                        "message": "Name wajib diisi."
+                    }
+                ]
+            }            
+
+    17. DELETE /api/attributes/{attribute_id}
+            Role access : admin
+
+            Response Body (Success) : 
+            {
+                "message": "Attribute berhasil dihapus"
+            }
+
+            Response body (Error) : 
+            {
+                "message": "Attribute gagal dihapus."
+            }    
+
+    18. GET /api/attributes
+            Role access : all
+
+            Response Body (Success) : 
+            {
+                "data": {
+                    "message" : "Attribute berhasil diambil",
+                    "attributes": [
+                        {
+                            "attribute_id": 1,
+                            "name": "pedas",
+                            "created_at": "2026-04-25T10:00:00Z",
+                            "updated_at": "2026-04-25T10:00:00Z"
+                        }
+                    ]
+                }
+            }
+
+            Response body (Error) : 
+            {
+                "message": "Attribute gagal diambil."
+            }    
+
+Jelaskan tahapan-tahapan yang harus dilakukan untuk mengimplementasikan fitur ini anggap nanti yang mengimplementasikan adalah junior
+Programmer atau model AI yang lebih murah
