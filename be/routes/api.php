@@ -7,6 +7,8 @@ use App\Http\Controllers\BusinessCategoryController;
 use App\Http\Controllers\CookingCategoryController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\AttributeController;
+use App\Http\Controllers\StoveController;
+use App\Http\Controllers\WokController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +35,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/cooking-categories', [CookingCategoryController::class, 'index']);
     Route::get('/menus', [MenuController::class, 'index']);
     Route::get('/attributes', [AttributeController::class, 'index']);
+    Route::get('/stoves', [StoveController::class, 'index']);
+    Route::get('/woks', [WokController::class, 'index']);
 
     Route::middleware('admin')->group(function () {
         Route::post('/business-categories', [BusinessCategoryController::class, 'store']);
@@ -50,6 +54,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/attributes', [AttributeController::class, 'store']);
         Route::put('/attributes/{id}', [AttributeController::class, 'update']);
         Route::delete('/attributes/{id}', [AttributeController::class, 'destroy']);
+
+        Route::post('/stoves', [StoveController::class, 'store']);
+        Route::put('/stoves/{id}', [StoveController::class, 'update']);
+        Route::delete('/stoves/{id}', [StoveController::class, 'destroy']);
+
+        Route::post('/woks', [WokController::class, 'store']);
+        Route::put('/woks/{id}', [WokController::class, 'update']);
+        Route::delete('/woks/{id}', [WokController::class, 'destroy']);
     });
 
     // Admin Only Routes
